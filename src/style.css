@@ -1,0 +1,33 @@
+body {
+    font-family: sans-serif;
+    text-align: center;
+    background: #f0f0f0;
+    padding: 20px;
+  }
+  
+  #app {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  
+  canvas {
+    max-width: 100%;
+    height: auto;
+    margin-top: 20px;
+    border: 1px solid #ccc;
+    display: none; /* Скрыт, пока нет картинки */
+  }
+  
+  #status {
+    margin-top: 10px;
+    font-weight: bold;
+    color: #555;
+  }
+  
+  input[type="file"] {
+    margin: 20px 0;
+  }

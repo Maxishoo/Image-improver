@@ -1,7 +1,44 @@
-// Функция для создания паузы (в миллисекундах)
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const activeTasks = new Set<string>();
+
+// Функция для проверки доступности ресурсов
+async function checkResources() {
+  console.log('🔍 Проверка ресурсов...');
+  
+  // Проверяем WASM файлы
+  try {
+    const wasmResponse = await fetch('/wasm/ort-wasm.wasm');
+    console.log('📦 WASM файл:', {
+      status: wasmResponse.status,
+      type: wasmResponse.headers.get('content-type'),
+      size: wasmResponse.headers.get('content-length')
+    });
+  } catch (e) {
+    console.error('❌ WASM файл не доступен:', e);
+  }
+  
+  // Проверяем модель
+  try {
+    const modelResponse = await fetch('/models/zero_dce.onnx');
+    console.log('📦 Модель:', {
+      status: modelResponse.status,
+      size: modelResponse.headers.get('content-length')
+    });
+    
+    // Проверяем файл данных
+    const dataResponse = await fetch('/models/zero_dce.onnx.data');
+    console.log('📦 Данные модели:', {
+      status: dataResponse.status,
+      size: dataResponse.headers.get('content-length')
+    });
+  } catch (e) {
+    console.error('❌ Модель не доступна:', e);
+  }
+}
+
+// Проверяем при старте воркера
+checkResources();
 
 self.onmessage = async (event) => {
   const { type, payload } = event.data;
@@ -9,82 +46,132 @@ self.onmessage = async (event) => {
   if (type === 'PROCESS_IMAGE') {
     const { taskId, file } = payload;
     
-    // Добавляем задачу в активные
     activeTasks.add(taskId);
     
     try {
-      // --- ЭТАП 1: Проверка формата ---
       self.postMessage({
         type: 'PROGRESS',
         taskId,
         progress: 10,
         message: '1. Проверка формата...'
       });
-      await sleep(2000); // ⏸️ ПАУЗА 2 секунды
+      await sleep(500);
 
-      // --- ЭТАП 2: Конвертация HEIC (если нужно) ---
       self.postMessage({
         type: 'PROGRESS',
         taskId,
         progress: 30,
-        message: '2. Конвертация HEIC...'
+        message: '2. Подготовка изображения...'
       });
-      await sleep(2000); // ⏸️ ПАУЗА 2 секунды
+      await sleep(500);
 
-      // --- ЭТАП 3: Сжатие для ML ---
       self.postMessage({
         type: 'PROGRESS',
         taskId,
         progress: 50,
-        message: '3. Подготовка для ML (сжатие)...'
+        message: '3. Сжатие для нейросети...'
       });
       
-      // Реальное сжатие (быстрое, но добавим задержку для наглядности)
       const resizedBlob = await downscaleImageInWorker(file, 512);
-      await sleep(2000); // ⏸️ ПАУЗА 2 секунды
+      await sleep(500);
 
-      // --- ЭТАП 4: Имитация ML анализа ---
+      self.postMessage({
+        type: 'PROGRESS',
+        taskId,
+        progress: 70,
+        message: '4. Улучшение Zero-DCE...'
+      });
+
+      // Загружаем Zero-DCE
+      const { zeroDCE } = await import('../ml/zeroDCE.js');
+      
+      if (!zeroDCE.isLoaded) {
+        self.postMessage({
+          type: 'PROGRESS',
+          taskId,
+          progress: 75,
+          message: '4.1 Загрузка модели...'
+        });
+        
+        try {
+          await zeroDCE.load('/models/zero_dce.onnx');
+          console.log('✅ Модель загружена в воркере');
+        } catch (modelError) {
+          console.error('❌ Ошибка загрузки модели:', modelError);
+          
+          // Пробуем альтернативный путь
+          self.postMessage({
+            type: 'PROGRESS',
+            taskId,
+            progress: 75,
+            message: '4.1 Повторная попытка с другим провайдером...'
+          });
+          
+          await zeroDCE.load('/models/zero_dce.onnx');
+        }
+      }
+      
       self.postMessage({
         type: 'PROGRESS',
         taskId,
         progress: 80,
-        message: '4. Анализ нейросетью...'
+        message: '4.2 Запуск нейросети...'
       });
-      await sleep(2000); // ⏸️ ПАУЗА 2 секунды
-
-      // --- ЭТАП 5: Завершение ---
+      
+      const enhancementResult = await zeroDCE.enhance(resizedBlob);
+      
       self.postMessage({
         type: 'PROGRESS',
         taskId,
         progress: 90,
-        message: '5. Формирование ответа...'
+        message: '4.3 Постобработка...'
       });
-      await sleep(1000); // ⏸️ ПАУЗА 1 секунда
-
-      // Результат (заглушка параметров)
+      
+      const enhancedBlob = await zeroDCE.imageDataToBlob(
+        enhancementResult.imageData,
+        enhancementResult.width,
+        enhancementResult.height
+      );
+      
       const mlParams = {
-        brightness: 1.1,
-        contrast: 1.05,
-        saturation: 1.0
+        brightness: 1.0,
+        contrast: 1.0,
+        saturation: 1.0,
+        zeroDCEApplied: true,
+        modelUsed: 'Zero-DCE'
       };
+      
+      self.postMessage({
+        type: 'PREVIEW',
+        taskId,
+        progress: 95,
+        preview: enhancedBlob,
+        message: '4.4 Генерация превью...'
+      });
 
+      console.log('✅ Zero-DCE успешно применил улучшения');
+      
       self.postMessage({
         type: 'COMPLETE',
         taskId,
         progress: 100,
-        message: 'Готово!',
+        message: '✅ Готово! Zero-DCE',
         result: {
           originalFile: file,
           mlInput: resizedBlob,
-          params: mlParams
+          enhancedImage: enhancedBlob,
+          params: mlParams,
+          modelUsed: 'Zero-DCE'
         }
       });
-
+      
     } catch (error) {
+      console.error('❌ Worker error:', error);
       self.postMessage({
         type: 'ERROR',
         taskId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.stack : undefined
       });
     } finally {
       activeTasks.delete(taskId);
@@ -101,7 +188,6 @@ self.onmessage = async (event) => {
   }
 };
 
-// Функция для сжатия изображения в воркере
 async function downscaleImageInWorker(file: File, maxSize: number): Promise<Blob> {
   const imageBitmap = await createImageBitmap(file);
   

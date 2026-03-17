@@ -1,17 +1,47 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Улучшение изображений ML</title>
+    <title>Zero-DCE Image Enhancement</title>
   </head>
   <body>
     <div id="app">
-      <h1>📸 Загрузите изображение</h1>
-      <input type="file" id="fileInput" accept="image/png, image/jpeg, image/bmp, image/heic, image/heif" />
-      <div id="status">Статус: Ожидание...</div>
-      <canvas id="previewCanvas"></canvas>
+      <h1>Zero-DCE Image Enhancement</h1>
+      <p>Загрузите изображение для улучшения с помощью нейросети</p>
+      
+      <div class="upload-section">
+        <input type="file" id="fileInput" accept="image/*" />
+      </div>
+      
+      <div id="status">Статус: Ожидание файла... ⏳</div>
+      
+      <div class="comparison-container" id="comparisonContainer">
+        <div class="image-wrapper">
+          <div class="image-container" id="originalContainer">
+            <canvas id="originalCanvas"></canvas>
+          </div>
+          <div class="image-container" id="enhancedContainer">
+            <canvas id="enhancedCanvas"></canvas>
+          </div>
+        </div>
+        
+        <div class="labels">
+          <span class="label">Оригинал</span>
+          <span class="label">Улучшено</span>
+        </div>
+        
+        <div class="comparison-slider" id="comparisonSlider">
+          <input type="range" id="sliderRange" min="0" max="100" value="50" />
+        </div>
+      </div>
+      
+      <button id="downloadBtn" style="display: none;">
+        Скачать улучшенное изображение ⬇️
+      </button>
     </div>
+    
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

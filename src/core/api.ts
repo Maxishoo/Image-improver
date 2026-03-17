@@ -1,10 +1,8 @@
-// Создаем воркера
 const worker = new Worker(
   new URL('../workers/imageWorker.ts', import.meta.url),
   { type: 'module' }
 );
 
-// Хранилище задач
 interface Task {
   id: string;
   status: 'pending' | 'processing' | 'completed' | 'error' | 'cancelled';
@@ -16,24 +14,17 @@ interface Task {
 const tasks = new Map<string, Task>();
 let taskIdCounter = 0;
 
-// Создаем новую задачу
 export function createTask(): Task {
   const id = `task_${Date.now()}_${taskIdCounter++}`;
-  const task: Task = {
-    id,
-    status: 'pending',
-    progress: 0
-  };
+  const task: Task = { id, status: 'pending', progress: 0 };
   tasks.set(id, task);
   return task;
 }
 
-// Получаем задачу по ID
 export function getTask(taskId: string): Task | undefined {
   return tasks.get(taskId);
 }
 
-// Обновляем статус задачи
 export function updateTaskStatus(
   taskId: string, 
   status: Task['status'], 
@@ -48,7 +39,6 @@ export function updateTaskStatus(
   }
 }
 
-// Отправка задачи в воркер
 export async function submitTask(
   file: File, 
   onProgress?: (progress: number) => void
@@ -56,7 +46,6 @@ export async function submitTask(
   const task = createTask();
   
   return new Promise((resolve, reject) => {
-    // Отправляем данные рабочему
     worker.postMessage({
       type: 'PROCESS_IMAGE',
       payload: {
@@ -65,7 +54,6 @@ export async function submitTask(
       }
     });
 
-    // Обработчик ответов
     const handler = (event: MessageEvent) => {
       if (event.data.taskId === task.id) {
         switch (event.data.type) {
@@ -85,6 +73,17 @@ export async function submitTask(
             worker.removeEventListener('message', handler);
             reject(new Error(event.data.error));
             break;
+          
+          case 'PREVIEW':
+            updateTaskStatus(task.id, 'processing', event.data.progress);
+            // Можно показать промежуточный результат
+            onProgress?.(event.data.progress);
+            // Отправляем превью в main
+            const previewEvent = new CustomEvent('preview', { 
+              detail: { taskId: task.id, preview: event.data.preview } 
+            });
+            window.dispatchEvent(previewEvent);
+            break;
         }
       }
     };
@@ -93,7 +92,6 @@ export async function submitTask(
   });
 }
 
-// Отмена задачи
 export function cancelTask(taskId: string) {
   worker.postMessage({
     type: 'CANCEL',
@@ -102,7 +100,6 @@ export function cancelTask(taskId: string) {
   updateTaskStatus(taskId, 'cancelled');
 }
 
-// Подписка на все события
-export function onStatusChange(callback: (data: any) => void) {
+export function onStatusChange(callback: ( any) => void) {
   worker.addEventListener('message', callback);
 }

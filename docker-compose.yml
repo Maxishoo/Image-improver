@@ -2,30 +2,20 @@ version: '3.8'
 
 services:
   app:
-    # Собираем коробку из файла Dockerfile
     build: .
     
-    # Даем имя контейнеру
     container_name: image-enhancer-dev
     
-    # Открываем порты: снаружи:внутри
     ports:
       - "5173:5173"
     
-    # МАГИЯ АВТО-ОБНОВЛЕНИЯ (Volumes)
     volumes:
-      # Монтируем текущую папку в папку /app внутри контейнера
       - .:/app
-      
-      # ВАЖНО: Не даем локальной папке node_modules сломать контейнер
-      # Контейнер будет использовать свои библиотеки, а не твои локальные
       - /app/node_modules
     
-    # Переменные среды (чтобы Vite знал, что можно слушать все адреса)
     environment:
       - NODE_ENV=development
-      - CHOKIDAR_USEPOLLING=true # Помогает на Windows/Mac видеть изменения
+      - CHOKIDAR_USEPOLLING=true
     
-    # Оставляем контейнер живым
     stdin_open: true
     tty: true

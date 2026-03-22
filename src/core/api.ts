@@ -76,9 +76,7 @@ export async function submitTask(
           
           case 'PREVIEW':
             updateTaskStatus(task.id, 'processing', event.data.progress);
-            // Можно показать промежуточный результат
             onProgress?.(event.data.progress);
-            // Отправляем превью в main
             const previewEvent = new CustomEvent('preview', { 
               detail: { taskId: task.id, preview: event.data.preview } 
             });

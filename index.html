@@ -1,47 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Zero-DCE Image Enhancement</title>
+    <title>AI Image Enhancer</title>
   </head>
+
   <body>
     <div id="app">
-      <h1>Zero-DCE Image Enhancement</h1>
-      <p>Загрузите изображение для улучшения с помощью нейросети</p>
-      
-      <div class="upload-section">
-        <input type="file" id="fileInput" accept="image/*" />
-      </div>
-      
-      <div id="status">Статус: Ожидание файла... ⏳</div>
-      
-      <div class="comparison-container" id="comparisonContainer">
-        <div class="image-wrapper">
-          <div class="image-container" id="originalContainer">
-            <canvas id="originalCanvas"></canvas>
-          </div>
-          <div class="image-container" id="enhancedContainer">
-            <canvas id="enhancedCanvas"></canvas>
-          </div>
-        </div>
+      <div class="card">
+        <h1>✨ AI улучшение изображений</h1>
+
+        <label class="upload">
+          <input type="file" id="fileInput" accept="image/*" hidden />
+          <span>📁 Выбрать файл изображения</span>
+        </label>
+
+        <div id="status">Ожидание файла...</div>
+
+        <div class="comparison-container" id="comparisonContainer">
+          <div class="image-wrapper">
+            <div class="labels-top">
+              <span class="label label-original">ОРИГИНАЛ</span>
+              <span class="label label-enhanced">УЛУЧШЕНО</span>
+            </div>
+            
+            <div class="image-container" id="originalContainer">
+              <canvas id="originalCanvas"></canvas>
+            </div>
         
-        <div class="labels">
-          <span class="label">Оригинал</span>
-          <span class="label">Улучшено</span>
-        </div>
+            <div class="image-container" id="enhancedContainer">
+              <canvas id="enhancedCanvas"></canvas>
+              
+              <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+              </div>
+            </div>
         
-        <div class="comparison-slider" id="comparisonSlider">
-          <input type="range" id="sliderRange" min="0" max="100" value="50" />
+            <div class="divider"></div>
+            
+            <div class="slider-container">
+              <input
+                type="range"
+                id="sliderRange"
+                min="0"
+                max="100"
+                value="50"
+              />
+            </div>
+          </div>
         </div>
+
+        <button id="downloadBtn">⬇️ Скачать результат</button>
       </div>
-      
-      <button id="downloadBtn" style="display: none;">
-        Скачать улучшенное изображение ⬇️
-      </button>
     </div>
-    
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

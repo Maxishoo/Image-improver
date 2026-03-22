@@ -1,7 +1,6 @@
 import './style.css'
 import { submitTask, getTask } from './core/api'
 
-// Элементы
 const fileInput = document.getElementById('fileInput') as HTMLInputElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 const originalCanvas = document.getElementById('originalCanvas') as HTMLCanvasElement;
@@ -12,6 +11,7 @@ const originalContainer = document.getElementById('originalContainer') as HTMLDi
 const enhancedContainer = document.getElementById('enhancedContainer') as HTMLDivElement;
 const comparisonContainer = document.getElementById('comparisonContainer') as HTMLDivElement;
 const comparisonSlider = document.getElementById('comparisonSlider') as HTMLDivElement;
+const loadingOverlay = document.getElementById('loadingOverlay') as HTMLDivElement;
 
 const originalCtx = originalCanvas.getContext('2d');
 const enhancedCtx = enhancedCanvas.getContext('2d');
@@ -21,29 +21,24 @@ let enhancedBlob: Blob | null = null;
 let originalImageWidth = 0;
 let originalImageHeight = 0;
 
-// Функция для обновления соотношения сторон контейнера
 function updateAspectRatio(width: number, height: number) {
   const wrapper = document.querySelector('.image-wrapper') as HTMLElement;
   if (wrapper) {
     wrapper.style.aspectRatio = `${width} / ${height}`;
   }
 }
-
-// Функция для обновления сравнения
 function updateComparison(value: number) {
-  if (!originalContainer || !enhancedContainer) return;
-  
-  // Оригинал слева, улучшенное справа
   originalContainer.style.clipPath = `inset(0 ${100 - value}% 0 0)`;
   enhancedContainer.style.clipPath = `inset(0 0 0 ${value}%)`;
-  
-  // Обновляем цвет слайдера
-  if (sliderRange) {
-    sliderRange.style.background = `linear-gradient(90deg, #646cff 0%, #646cff ${value}%, #fff ${value}%, #fff 100%)`;
+
+  const divider = document.querySelector('.divider') as HTMLElement;
+  if (divider) {
+    divider.style.left = `${value}%`;
   }
+
+  sliderRange.style.background = `linear-gradient(90deg, #6366f1 ${value}%, #444 ${value}%)`;
 }
 
-// Обработка слайдера
 if (sliderRange) {
   sliderRange.addEventListener('input', (e) => {
     const value = (e.target as HTMLInputElement).value;
@@ -51,7 +46,6 @@ if (sliderRange) {
   });
 }
 
-// Скачивание улучшенного изображения
 if (downloadBtn) {
   downloadBtn.addEventListener('click', () => {
     if (!enhancedBlob) return;
@@ -67,46 +61,39 @@ if (downloadBtn) {
   });
 }
 
-// Обработка загрузки файла
 fileInput.addEventListener('change', async (event) => {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
 
-  // Сброс состояния
   enhancedBlob = null;
   downloadBtn.classList.remove('visible');
+
+  loadingOverlay.classList.remove('hidden');
   
   statusDiv.textContent = 'Статус: Начинаем обработку... ⏳';
   statusDiv.style.color = 'blue';
   
-  // Загружаем оригинал
   const originalImg = new Image();
   originalImg.onload = () => {
+    sliderRange.value = '50';
+    updateComparison(50);
+
     originalImageWidth = originalImg.width;
     originalImageHeight = originalImg.height;
-    
-    // Устанавливаем размеры canvas
+
     originalCanvas.width = originalImg.width;
     originalCanvas.height = originalImg.height;
     enhancedCanvas.width = originalImg.width;
     enhancedCanvas.height = originalImg.height;
     
-    // Рисуем оригинал
     originalCtx?.drawImage(originalImg, 0, 0);
     
-    // Очищаем улучшенное (пока пусто)
     enhancedCtx?.clearRect(0, 0, enhancedCanvas.width, enhancedCanvas.height);
     
-    // Обновляем соотношение сторон контейнера
     updateAspectRatio(originalImg.width, originalImg.height);
     
-    // Показываем контейнер сравнения
     comparisonContainer.classList.add('visible');
     comparisonSlider.classList.add('visible');
-    
-    // Сбрасываем слайдер
-    sliderRange.value = '50';
-    updateComparison(50);
     
     console.log('Оригинал загружен:', originalImg.width, 'x', originalImg.height);
   };
@@ -125,35 +112,39 @@ fileInput.addEventListener('change', async (event) => {
       if (task.result?.enhancedImage) {
         enhancedBlob = task.result.enhancedImage;
         
-        console.log('🎨 Загружаем улучшенное изображение');
+        console.log('🎨 Загружаем результат');
         
         const enhancedUrl = URL.createObjectURL(enhancedBlob);
-        
         const enhancedImg = new Image();
+        
         enhancedImg.onload = () => {
-          // Если размеры отличаются, обновляем canvas
-          if (enhancedImg.width !== originalImageWidth || 
-              enhancedImg.height !== originalImageHeight) {
-            enhancedCanvas.width = enhancedImg.width;
-            enhancedCanvas.height = enhancedImg.height;
-            updateAspectRatio(enhancedImg.width, enhancedImg.height);
-          }
+          console.log('📐 Результат:', enhancedImg.width, '×', enhancedImg.height);
           
-          // Рисуем улучшенное изображение
-          enhancedCtx?.drawImage(enhancedImg, 0, 0);
+          enhancedCanvas.width = originalImageWidth;
+          enhancedCanvas.height = originalImageHeight;
           
-          // Показываем кнопку загрузки
+          enhancedCtx?.drawImage(
+            enhancedImg,
+            0, 0, enhancedImg.width, enhancedImg.height,
+            0, 0, enhancedCanvas.width, enhancedCanvas.height
+          );
           downloadBtn.classList.add('visible');
+
+          sliderRange.value = '50';
+          updateComparison(50);
           
           URL.revokeObjectURL(enhancedUrl);
-          
-          console.log('Улучшенное изображение загружено');
+          console.log('✅ Изображение отрисовано');
         };
+        loadingOverlay.classList.add('hidden');
+        
+        enhancedImg.onerror = (e) => {
+          console.error('❌ Ошибка загрузки:', e);
+          statusDiv.textContent = '❌ Ошибка отображения';
+        };
+        
         enhancedImg.src = enhancedUrl;
       }
-      
-      console.log('📊 Параметры:', task.result?.params);
-      console.log('🤖 Использована модель:', task.result?.modelUsed);
     }
   } catch (error) {
     statusDiv.textContent = `Статус: Ошибка! ❌ ${error}`;

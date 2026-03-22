@@ -1,8 +1,5 @@
 import heic2any from 'heic2any';
 
-/**
- * Конвертирует HEIC в JPEG
- */
 export async function convertHeicToJpeg(file: File): Promise<File> {
   const blob = await heic2any({
     blob: file,
@@ -15,9 +12,6 @@ export async function convertHeicToJpeg(file: File): Promise<File> {
   });
 }
 
-/**
- * Проверяет, является ли файл HEIC
- */
 export function isHeicFile(file: File): boolean {
   return file.type === 'image/heic' || 
          file.type === 'image/heif' || 
@@ -25,14 +19,11 @@ export function isHeicFile(file: File): boolean {
          file.name.toLowerCase().endsWith('.heif');
 }
 
-/**
- * Создает сжатую версию изображения для ML (до 512px)
- */
+
 export async function downscaleImage(file: File, maxSize: number = 512): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      // Вычисляем новые размеры
       let width = img.width;
       let height = img.height;
       
@@ -48,7 +39,6 @@ export async function downscaleImage(file: File, maxSize: number = 512): Promise
         }
       }
 
-      // Создаем canvas для ресайза
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
@@ -59,10 +49,8 @@ export async function downscaleImage(file: File, maxSize: number = 512): Promise
         return;
       }
 
-      // Рисуем уменьшенное изображение
       ctx.drawImage(img, 0, 0, width, height);
       
-      // Конвертируем в blob
       canvas.toBlob((blob) => {
         if (blob) {
           resolve(blob);

@@ -7,7 +7,7 @@ services:
     container_name: image-enhancer-dev
     
     ports:
-      - "5173:5173"
+      - "80:80"
     
     volumes:
       - .:/app

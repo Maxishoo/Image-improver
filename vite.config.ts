@@ -5,6 +5,12 @@ export default defineConfig({
     host: true,
     port: 80,
     strictPort: true,
+    allowedHosts: [
+      'ai-image-enhancer-maximsha.amvera.io',
+      'amvera-maximsha-run-ai-image-enhancer.amvera.io',
+      'localhost',
+      '127.0.0.1'
+    ],
     watch: {
       usePolling: true,
     },

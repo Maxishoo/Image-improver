@@ -1,5 +1,6 @@
 import './style.css'
 import { submitTask, getTask } from './core/api'
+import heic2any from 'heic2any'
 
 const fileInput = document.getElementById('fileInput') as HTMLInputElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
@@ -27,6 +28,7 @@ function updateAspectRatio(width: number, height: number) {
     wrapper.style.aspectRatio = `${width} / ${height}`;
   }
 }
+
 function updateComparison(value: number) {
   originalContainer.style.clipPath = `inset(0 ${100 - value}% 0 0)`;
   enhancedContainer.style.clipPath = `inset(0 0 0 ${value}%)`;
@@ -61,6 +63,36 @@ if (downloadBtn) {
   });
 }
 
+async function ensureWebCompatibleFile(file: File): Promise<File> {
+  const isHeic = 
+    file.type.includes('heic') || 
+    file.type.includes('heif') || 
+    file.name.toLowerCase().endsWith('.heic') || 
+    file.name.toLowerCase().endsWith('.heif');
+
+  if (!isHeic) {
+    return file;
+  }
+
+  console.log('Конвертация HEIC в JPEG');
+  
+  try {
+    const blob = await heic2any({
+      blob: file,
+      toType: 'image/jpeg',
+      quality: 0.95
+    });
+
+    return new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), {
+      type: 'image/jpeg',
+      lastModified: file.lastModified
+    });
+  } catch (err) {
+    console.error('Ошибка конвертации HEIC:', err);
+    throw new Error('Не удалось обработать HEIC файл');
+  }
+}
+
 fileInput.addEventListener('change', async (event) => {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
@@ -70,55 +102,57 @@ fileInput.addEventListener('change', async (event) => {
 
   loadingOverlay.classList.remove('hidden');
   
-  statusDiv.textContent = 'Статус: Начинаем обработку... ⏳';
-  statusDiv.style.color = 'blue';
-  
-  const originalImg = new Image();
-  originalImg.onload = () => {
-    sliderRange.value = '50';
-    updateComparison(50);
-
-    originalImageWidth = originalImg.width;
-    originalImageHeight = originalImg.height;
-
-    originalCanvas.width = originalImg.width;
-    originalCanvas.height = originalImg.height;
-    enhancedCanvas.width = originalImg.width;
-    enhancedCanvas.height = originalImg.height;
-    
-    originalCtx?.drawImage(originalImg, 0, 0);
-    
-    enhancedCtx?.clearRect(0, 0, enhancedCanvas.width, enhancedCanvas.height);
-    
-    updateAspectRatio(originalImg.width, originalImg.height);
-    
-    comparisonContainer.classList.add('visible');
-    comparisonSlider.classList.add('visible');
-    
-    console.log('Оригинал загружен:', originalImg.width, 'x', originalImg.height);
-  };
-  originalImg.src = URL.createObjectURL(file);
+  statusDiv.textContent = 'Статус: Начинаем обработку...';
+  statusDiv.style.color = 'white';
 
   try {
-    currentTaskId = await submitTask(file, (progress) => {
-      statusDiv.textContent = `Статус: Обработка... ${progress}% ⏳`;
+    const processingFile = await ensureWebCompatibleFile(file);
+    
+    const originalImg = new Image();
+    originalImg.onload = () => {
+      sliderRange.value = '50';
+      updateComparison(50);
+
+      originalImageWidth = originalImg.width;
+      originalImageHeight = originalImg.height;
+
+      originalCanvas.width = originalImg.width;
+      originalCanvas.height = originalImg.height;
+      enhancedCanvas.width = originalImg.width;
+      enhancedCanvas.height = originalImg.height;
+      
+      originalCtx?.drawImage(originalImg, 0, 0);
+      
+      enhancedCtx?.clearRect(0, 0, enhancedCanvas.width, enhancedCanvas.height);
+      
+      updateAspectRatio(originalImg.width, originalImg.height);
+      
+      comparisonContainer.classList.add('visible');
+      
+      console.log('Оригинал загружен:', originalImg.width, 'x', originalImg.height);
+    };
+    originalImg.src = URL.createObjectURL(processingFile);
+
+    currentTaskId = await submitTask(processingFile, (progress, message) => {
+      const statusText = message ? `Статус: ${message} ${progress}%` : `Статус: Обработка... ${progress}%`;
+      statusDiv.textContent = statusText;
     });
 
     const task = getTask(currentTaskId);
     if (task?.status === 'completed') {
-      statusDiv.textContent = 'Статус: Обработка завершена! ✅';
+      statusDiv.textContent = 'Статус: Обработка завершена!';
       statusDiv.style.color = 'green';
       
       if (task.result?.enhancedImage) {
         enhancedBlob = task.result.enhancedImage;
         
-        console.log('🎨 Загружаем результат');
+        console.log('Загружаем результат');
         
         const enhancedUrl = URL.createObjectURL(enhancedBlob);
         const enhancedImg = new Image();
         
         enhancedImg.onload = () => {
-          console.log('📐 Результат:', enhancedImg.width, '×', enhancedImg.height);
+          console.log('Результат:', enhancedImg.width, '×', enhancedImg.height);
           
           enhancedCanvas.width = originalImageWidth;
           enhancedCanvas.height = originalImageHeight;
@@ -134,21 +168,22 @@ fileInput.addEventListener('change', async (event) => {
           updateComparison(50);
           
           URL.revokeObjectURL(enhancedUrl);
-          console.log('✅ Изображение отрисовано');
+          console.log('Изображение отрисовано');
         };
         loadingOverlay.classList.add('hidden');
         
         enhancedImg.onerror = (e) => {
-          console.error('❌ Ошибка загрузки:', e);
-          statusDiv.textContent = '❌ Ошибка отображения';
+          console.error('Ошибка загрузки:', e);
+          statusDiv.textContent = 'Ошибка отображения';
         };
         
         enhancedImg.src = enhancedUrl;
       }
     }
   } catch (error) {
-    statusDiv.textContent = `Статус: Ошибка! ❌ ${error}`;
+    statusDiv.textContent = `Статус: Ошибка! ${error}`;
     statusDiv.style.color = 'red';
     console.error('Processing error:', error);
+    loadingOverlay.classList.add('hidden');
   }
 });

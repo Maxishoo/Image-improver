@@ -41,7 +41,7 @@ export function updateTaskStatus(
 
 export async function submitTask(
   file: File, 
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number, message?: string) => void
 ): Promise<string> {
   const task = createTask();
   
@@ -59,7 +59,7 @@ export async function submitTask(
         switch (event.data.type) {
           case 'PROGRESS':
             updateTaskStatus(task.id, 'processing', event.data.progress);
-            onProgress?.(event.data.progress);
+            onProgress?.(event.data.progress, event.data.message);
             break;
             
           case 'COMPLETE':
@@ -76,7 +76,7 @@ export async function submitTask(
           
           case 'PREVIEW':
             updateTaskStatus(task.id, 'processing', event.data.progress);
-            onProgress?.(event.data.progress);
+            onProgress?.(event.data.progress, event.data.message);
             const previewEvent = new CustomEvent('preview', { 
               detail: { taskId: task.id, preview: event.data.preview } 
             });
@@ -98,6 +98,6 @@ export function cancelTask(taskId: string) {
   updateTaskStatus(taskId, 'cancelled');
 }
 
-export function onStatusChange(callback: ( any) => void) {
+export function onStatusChange(callback: (any) => void) {
   worker.addEventListener('message', callback);
 }

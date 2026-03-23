@@ -6,12 +6,12 @@ const MODEL_SIZE = 256;
 async function checkResources() {
   try {
     const modelResponse = await fetch('/models/zero_dce.onnx');
-    console.log('📦 Модель:', {
+    console.log('Модель:', {
       status: modelResponse.status,
       size: modelResponse.headers.get('content-length')
     });
   } catch (e) {
-    console.warn('⚠️ Модель пока не доступна:', e);
+    console.warn('Модель не доступна:', e);
   }
 }
 checkResources();
@@ -24,35 +24,39 @@ self.onmessage = async (event) => {
     activeTasks.add(taskId);
 
     try {
-      self.postMessage({ type: 'PROGRESS', taskId, progress: 10, message: '1. Проверка...' });
+      self.postMessage({ type: 'PROGRESS', taskId, progress: 10, message: 'Проверка...' });
       await sleep(200);
 
-      self.postMessage({ type: 'PROGRESS', taskId, progress: 30, message: '2. Подготовка...' });
+      self.postMessage({ type: 'PROGRESS', taskId, progress: 20, message: 'Подготовка...' });
       await sleep(200);
 
-      self.postMessage({ type: 'PROGRESS', taskId, progress: 50, message: '3. Сжатие до 256×256...' });
+      self.postMessage({ type: 'PROGRESS', taskId, progress: 30, message: 'Сжатие до 256×256...' });
 
       const resizedBlob = await downscaleImageInWorker(file);
 
-      self.postMessage({ type: 'PROGRESS', taskId, progress: 70, message: '4. Zero-DCE...' });
+      self.postMessage({ type: 'PROGRESS', taskId, progress: 50, message: 'Импорт модели Zero-DCE...' });
 
       const { zeroDCE } = await import('../ml/zeroDCE.js');
 
       if (!zeroDCE.isLoaded) {
-        self.postMessage({ type: 'PROGRESS', taskId, progress: 75, message: '4.1 Загрузка модели...' });
+        self.postMessage({ type: 'PROGRESS', taskId, progress: 65, message: 'Загрузка модели Zero-DCE...' });
         await zeroDCE.load('/models/zero_dce.onnx');
       }
 
-      self.postMessage({ type: 'PROGRESS', taskId, progress: 80, message: '4.2 Генерация curves...' });
+      self.postMessage({ type: 'PROGRESS', taskId, progress: 70, message: 'Генерация кривых...' });
 
       const curves = await zeroDCE.enhance(resizedBlob);
 
-      self.postMessage({ type: 'PROGRESS', taskId, progress: 90, message: '4.3 Применение к оригиналу...' });
+      self.postMessage({ type: 'PROGRESS', taskId, progress: 80, message: 'Применение улучшений к оригиналу...' });
 
       const enhancedFullResult = await zeroDCE.applyCurvesToOriginal(
         file,
         curves
       );
+      self.postMessage({ type: 'PROGRESS', taskId, progress: 90, message: 'Постобработка результата...' });
+
+      enhancedFullResult.imageData = await zeroDCE.autoWhiteBalance(enhancedFullResult.imageData);
+      enhancedFullResult.imageData = await zeroDCE.autoContrast(enhancedFullResult.imageData);
 
       const enhancedFullBlob = await zeroDCE.imageDataToBlob(
         enhancedFullResult.imageData,
@@ -64,17 +68,17 @@ self.onmessage = async (event) => {
         type: 'COMPLETE',
         taskId,
         progress: 100,
-        message: '✅ Готово!',
+        message: 'Готово!',
         result: {
           originalFile: file,
           enhancedImage: enhancedFullBlob,
           enhancedSize: `${enhancedFullResult.width}×${enhancedFullResult.height}`,
-          params: { modelUsed: 'Zero-DCE (256 → curves → original)' },
+          params: { modelUsed: 'Zero-DCE' },
         },
       });
 
     } catch (error) {
-      console.error('❌ Worker error:', error);
+      console.error('Worker error:', error);
 
       self.postMessage({
         type: 'ERROR',

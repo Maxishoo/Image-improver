@@ -10,5 +10,5 @@ run:
   command: null
   args: null
   persistenceMount: /data
-  containerPort: "80"
-  servicePort: "80"
+  containerPort: "5173"
+  servicePort: "5173"
